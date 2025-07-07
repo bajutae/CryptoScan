@@ -38,6 +38,18 @@
                 </select>
             </div>
 
+            <div id="daily-screener-criteria" class="hidden mb-6 p-4 bg-gray-700 rounded-lg">
+                <h3 class="text-lg font-semibold mb-2">데일리 관심 코인 선정 기준</h3>
+                <ul class="list-disc list-inside text-sm text-gray-300">
+                    <li><strong>기준 통화:</strong> KRW (원화) 마켓에서 거래되는 코인</li>
+                    <li><strong>최소 일일 거래량:</strong> 5억 KRW 이상</li>
+                    <li><strong>ATH 대비 하락률:</strong> 역대 최고가(ATH) 대비 최소 70% 이상 하락</li>
+                    <li><strong>30일 변동성:</strong> 지난 30일간의 변동성(최근 고점과 저점의 차이를 현재 종가로 나눈 값)이 45.0% ~ 75.0% 사이</li>
+                    <li><strong>CCI (Commodity Channel Index):</strong> 현재 CCI 값(20일 기준)이 -40.0 ~ 40.0 사이</li>
+                    <li><strong>과거 거래량 급증:</strong> (필수 아님) 지난 30일 이내 유의미한 거래량 급증 여부 분석</li>
+                </ul>
+            </div>
+
             <div id="daytrade-options" class="hidden mb-6">
                 <label for="daytrade-mode" class="block mb-2 text-sm font-medium text-gray-300">Daytrade 모드</label>
                 <select id="daytrade-mode" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
@@ -60,6 +72,7 @@
     <script>
         const screenerSelect = document.getElementById('screener-select');
         const daytradeOptions = document.getElementById('daytrade-options');
+        const dailyScreenerCriteria = document.getElementById('daily-screener-criteria'); // 새롭게 추가
         const runButton = document.getElementById('run-button');
         const outputContainer = document.getElementById('output-container');
         const outputBox = document.getElementById('output-box');
@@ -67,8 +80,14 @@
         screenerSelect.addEventListener('change', () => {
             if (screenerSelect.value === 'daytrade') {
                 daytradeOptions.classList.remove('hidden');
-            } else {
+                dailyScreenerCriteria.classList.add('hidden'); // 다른 스크리너 선택 시 숨김
+            } else if (screenerSelect.value === 'daily') { // 'daily' 선택 시 보이도록
                 daytradeOptions.classList.add('hidden');
+                dailyScreenerCriteria.classList.remove('hidden');
+            }
+            else { // 그 외 스크리너 선택 시 모두 숨김
+                daytradeOptions.classList.add('hidden');
+                dailyScreenerCriteria.classList.add('hidden');
             }
         });
 
