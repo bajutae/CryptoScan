@@ -1,15 +1,19 @@
-import ccxt
 import pandas as pd
-import pandas_ta as ta
 from datetime import datetime
-import mplfinance as mpf
 import os
+import sys
+import mplfinance as mpf
+
+# Add parent directory to path to import utils
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.market_data import get_active_symbols, get_ohlcv, calculate_indicators
+from utils.charting import save_chart
 
 # --- 최종 데일리 분석 기준 ---
 EXCHANGE = 'upbit'
 BASE_CURRENCY = 'KRW'
 MIN_DAILY_VOLUME_KRW = 500_000_000
-OUTPUT_DIR = 'charts'  # 차트 이미지 저장 폴더
+OUTPUT_DIR = 'charts'
 
 # 1. 차트 패턴 기준
 MIN_DOWNTREND_FROM_ATH = 0.70
@@ -21,52 +25,21 @@ CCI_PERIOD = 20
 
 # 2. 과거 거래량 분석 기준
 VOLUME_LOOKBACK_DAYS = 30
-CHART_DAYS = 120  # 차트에 표시할 기간 (일)
+CHART_DAYS = 120
 # ----------------------------------------------------
-
-def create_chart(df, coin_info, output_path):
-    """mplfinance를 사용하여 차트를 생성하고 저장합니다."""
-    df_chart = df.tail(CHART_DAYS).copy()
-    df_chart.set_index('timestamp', inplace=True)
-
-    # CCI 패널 추가
-    cci_panel = mpf.make_addplot(df_chart[f'CCI_{CCI_PERIOD}_0.015'], panel=2, color='purple', ylabel='CCI')
-    
-    # 거래량 급증일 표시
-    spike_date = pd.to_datetime(coin_info['max_spike_date_full'])
-    volume_overlays = [spike_date]
-    
-    # 차트 제목
-    title = (f"{coin_info['symbol']} | ATH 대비 {coin_info['downtrend']:.1f}% 하락\n"
-             f"30일 변동성: {coin_info['volatility']:.1f}% | 현재 CCI: {coin_info['cci']:.1f}\n"
-             f"과거 거래량 급증: {coin_info['max_volume_spike']:.1f}배 ({coin_info['max_spike_date']})")
-
-    # 차트 생성 및 저장
-    mpf.plot(df_chart, type='candle', style='yahoo',
-             title=title,
-             volume=True, panel_ratios=(3, 1),
-             addplot=[cci_panel],
-             vlines=dict(vlines=volume_overlays, linewidths=0.5, colors='r', alpha=0.7),
-             savefig=dict(fname=output_path, dpi=150, bbox_inches='tight'))
 
 def daily_screener():
     """
     매일 실행하여 관심 코인을 찾아내고, 결과를 watchlist.txt와 차트 이미지로 저장합니다.
     """
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
-
     header = f"--- {datetime.now().strftime('%Y-%m-%d')} 데일리 관심 코인 스크리너 ---\n"
     print(header.strip())
-    
-    try:
-        exchange = getattr(ccxt, EXCHANGE)()
-        markets = exchange.load_markets()
-    except Exception as e:
-        print(f"오류: 거래소 연결 실패 - {e}")
-        return
 
-    symbols = [m['symbol'] for m in markets.values() if m['quote'] == BASE_CURRENCY and m.get('active', True)]
+    symbols = get_active_symbols(EXCHANGE, BASE_CURRENCY)
+    if not symbols:
+        print(f"{EXCHANGE}에서 {BASE_CURRENCY} 마켓 정보를 가져오는 데 실패했습니다.")
+        return
+        
     print(f"총 {len(symbols)}개의 {BASE_CURRENCY} 마켓 코인 분석 시작...")
     print("-" * 70)
 
@@ -76,28 +49,30 @@ def daily_screener():
         print(f"[{i+1}/{len(symbols)}] 분석 중: {symbol}...", end='\r')
         
         try:
-            ohlcv = exchange.fetch_ohlcv(symbol, '1d', limit=2000)
-            if len(ohlcv) < CCI_PERIOD + 30: continue
+            df = get_ohlcv(EXCHANGE, symbol, '1d', limit=2000)
+            if df is None or len(df) < CCI_PERIOD + 30:
+                continue
 
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            
-            df.ta.cci(length=CCI_PERIOD, append=True)
+            df = calculate_indicators(df, cci_period=CCI_PERIOD)
             ath = df['high'].max()
             latest = df.iloc[-1]
             
             downtrend_from_ath = (1 - latest['close'] / ath)
-            if downtrend_from_ath < MIN_DOWNTREND_FROM_ATH: continue
+            if downtrend_from_ath < MIN_DOWNTREND_FROM_ATH:
+                continue
             
             recent_high = df['high'].tail(30).max()
             recent_low = df['low'].tail(30).min()
             volatility_metric = ((recent_high - recent_low) / latest['close']) * 100 if latest['close'] > 0 else 0
-            if not (MIN_VOLATILITY_30D <= volatility_metric <= MAX_VOLATILITY_30D): continue
+            if not (MIN_VOLATILITY_30D <= volatility_metric <= MAX_VOLATILITY_30D):
+                continue
             
             current_cci = latest[f'CCI_{CCI_PERIOD}_0.015']
-            if not (MIN_CCI <= current_cci <= MAX_CCI): continue
+            if not (MIN_CCI <= current_cci <= MAX_CCI):
+                continue
 
-            if (latest['close'] * latest['volume']) < MIN_DAILY_VOLUME_KRW: continue
+            if (latest['close'] * latest['volume']) < MIN_DAILY_VOLUME_KRW:
+                continue
 
             df['volume_sma_30'] = df['volume'].rolling(window=30).mean()
             recent_volume_df = df.iloc[-VOLUME_LOOKBACK_DAYS:].copy()
@@ -115,9 +90,25 @@ def daily_screener():
             }
             found_coins.append(coin_data)
             
-            # 차트 생성
-            chart_path = os.path.join(OUTPUT_DIR, f"{symbol.replace('/', '_')}.png")
-            create_chart(df, coin_data, chart_path)
+            # 차트 생성 정보 준비
+            cci_panel = mpf.make_addplot(df.tail(CHART_DAYS)[f'CCI_{CCI_PERIOD}_0.015'], panel=2, color='purple', ylabel='CCI')
+            spike_date = pd.to_datetime(coin_data['max_spike_date_full'])
+            
+            chart_title = (
+                f"{coin_data['symbol']} | ATH 대비 {coin_data['downtrend']:.1f}% 하락\n"
+                f"30일 변동성: {coin_data['volatility']:.1f}% | 현재 CCI: {coin_data['cci']:.1f}\n"
+                f"과거 거래량 급증: {coin_data['max_volume_spike']:.1f}배 ({coin_data['max_spike_date']})"
+            )
+
+            save_chart(
+                df,
+                symbol,
+                chart_days=CHART_DAYS,
+                output_dir=OUTPUT_DIR,
+                title=chart_title,
+                add_plots=[cci_panel],
+                vlines=[spike_date]
+            )
 
         except Exception:
             continue
@@ -128,7 +119,7 @@ def daily_screener():
     if found_coins:
         sorted_coins = sorted(found_coins, key=lambda x: x['max_volume_spike'], reverse=True)
         
-        result_header = f"총 {len(sorted_coins)}개의 관심 코인을 발견했습니다. (결과는 'charts' 폴더에 저장됨)\n\n"
+        result_header = f"총 {len(sorted_coins)}개의 관심 코인을 발견했습니다. (결과는 '{os.path.join(os.getcwd(), OUTPUT_DIR)}' 폴더에 저장됨)\n\n"
         result_table_header = f"{'종목명':<12} | {'ATH대비':>8} | {'변동성(30일)':>12} | {'현재CCI':>8} | {'과거 거래량 급증':>15}\n"
         result_separator = "-" * 70 + "\n"
         
@@ -153,9 +144,11 @@ def daily_screener():
 
     output_content += "-" * 70 + "\n"
     
-    with open('watchlist.txt', 'w', encoding='utf-8') as f:
+    # watchlist.txt를 프로젝트 루트에 저장
+    watchlist_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'watchlist.txt')
+    with open(watchlist_path, 'w', encoding='utf-8') as f:
         f.write(output_content)
-    print(f"\n분석 요약이 'watchlist.txt' 파일에 저장되었습니다.")
+    print(f"\n분석 요약이 '{watchlist_path}' 파일에 저장되었습니다.")
 
 if __name__ == '__main__':
     daily_screener()

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>암호화폐 스크리너</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Pretendard', sans-serif; }
+        .output-box {
+            white-space: pre-wrap;       /* 공백과 줄바꿈을 유지 */
+            word-wrap: break-word;       /* 긴 단어가 넘칠 경우 줄바꿈 */
+            font-family: monospace;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-bold mb-2">암호화폐 스크리너</h1>
+            <p class="text-lg text-gray-400">실행하고 싶은 스크리너를 선택하세요.</p>
+        </header>
+
+        <div class="max-w-2xl mx-auto bg-gray-800 p-6 rounded-lg shadow-lg">
+            <div class="mb-6">
+                <label for="screener-select" class="block mb-2 text-sm font-medium text-gray-300">스크리너 선택</label>
+                <select id="screener-select" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                    <option value="daily">데일리 관심 코인</option>
+                    <option value="altcoin">MOVE/IMX 유사 코인</option>
+                    <option value="futures">바이낸스 선물</option>
+                    <option value="daytrade">단타 전략 분석 (BTC/USDT)</option>
+                </select>
+            </div>
+
+            <div id="daytrade-options" class="hidden mb-6">
+                <label for="daytrade-mode" class="block mb-2 text-sm font-medium text-gray-300">Daytrade 모드</label>
+                <select id="daytrade-mode" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                    <option value="screener">실시간 분석</option>
+                    <option value="backtest">백테스트</option>
+                </select>
+            </div>
+
+            <button id="run-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                실행
+            </button>
+        </div>
+
+        <div id="output-container" class="max-w-4xl mx-auto mt-10 hidden">
+            <h2 class="text-2xl font-semibold mb-4">실행 결과</h2>
+            <div id="output-box" class="output-box"></div>
+        </div>
+    </div>
+
+    <script>
+        const screenerSelect = document.getElementById('screener-select');
+        const daytradeOptions = document.getElementById('daytrade-options');
+        const runButton = document.getElementById('run-button');
+        const outputContainer = document.getElementById('output-container');
+        const outputBox = document.getElementById('output-box');
+
+        screenerSelect.addEventListener('change', () => {
+            if (screenerSelect.value === 'daytrade') {
+                daytradeOptions.classList.remove('hidden');
+            } else {
+                daytradeOptions.classList.add('hidden');
+            }
+        });
+
+        runButton.addEventListener('click', async () => {
+            const screener = screenerSelect.value;
+            const mode = document.getElementById('daytrade-mode').value;
+            
+            outputContainer.classList.remove('hidden');
+            outputBox.textContent = '스크리너를 실행 중입니다...';
+            runButton.disabled = true;
+            runButton.textContent = '실행 중...';
+
+            try {
+                const response = await fetch(`/run-screener/${screener}?mode=${mode}`);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    outputBox.textContent = result.output;
+                } else {
+                    outputBox.textContent = `오류 발생: ${result.detail}`;
+                }
+            } catch (error) {
+                outputBox.textContent = `네트워크 오류 또는 서버 문제 발생: ${error}`;
+            } finally {
+                runButton.disabled = false;
+                runButton.textContent = '실행';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+    "SYMBOL": "BTC/USDT",
+    "PROFIT_TARGET_USD": 100,
+    "POSITION_SIZE_USD": 10000,
+    "MIN_RR_RATIO": 2.0
+}

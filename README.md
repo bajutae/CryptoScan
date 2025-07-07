@@ -1,123 +1,116 @@
-# 암호화폐 스크리너 프로젝트
+# 암호화폐 트레이딩 분석 및 스크리닝 도구
 
-## 프로젝트 개요
+이 프로젝트는 다양한 암호화폐 스크리닝 전략을 실행하고 시장 데이터를 분석하기 위한 파이썬 기반의 CLI 도구입니다.
 
-이 프로젝트는 다양한 전략을 사용하여 암호화폐 시장에서 잠재적인 투자 기회를 식별하는 파이썬 기반의 스크리닝 도구 모음입니다. 현재 다음 세 가지 주요 스크리너를 포함하고 있습니다.
+## 주요 기능
 
-1.  **`altcoin_screener.py`**: 특정 패턴(예: MOVE/KRW, IMX/KRW)을 보이는 알트코인을 탐색합니다. 신규 상장, 고점 대비 하락률, 최근 변동성, CCI 지표 등을 기준으로 필터링합니다.
-2.  **`binance_futures_screener.py`**: 바이낸스 선물 시장의 데이터를 분석하여 특정 조건을 만족하는 코인을 찾습니다. 미결제 약정(OI) 변화, 롱/숏 계정 비율, 펀딩비 등을 주요 지표로 사용합니다.
-3.  **`daily_screener.py`**: 매일 실행하여 업비트(Upbit) 원화(KRW) 마켓의 모든 코인을 분석하고, 설정된 기준(차트 패턴, 거래량 분석)에 맞는 '관심 코인'을 선정합니다. 선정된 코인은 `watchlist.txt` 파일에 요약되고, 상세 차트 이미지는 `charts/` 폴더에 저장됩니다.
+- **다양한 스크리닝 전략:**
+  - `daily`: 일봉 차트의 특정 패턴(예: ATH 대비 하락, 변동성, CCI)을 기반으로 관심 코인을 분석하고 차트를 생성합니다.
+  - `altcoin`: 신규 상장, 특정 가격 패턴 등 주어진 조건에 맞는 알트코인을 탐색합니다.
+  - `futures`: 바이낸스 선물 시장의 미결제 약정(OI), 롱/숏 비율, 펀딩비 등 데이터를 분석합니다.
+  - `daytrade`: 특정 코인에 대해 여러 타임프레임(1D, 4H, 1H, 15m 등)을 종합 분석하여 단기 트레이딩 시그널을 찾거나 전략을 백테스트합니다.
+- **모듈화된 구조:** 공통 기능(데이터 fetching, 지표 계산, 차트 생성)이 `utils` 모듈로 분리되어 있어 새로운 스크리닝 전략을 쉽게 추가하고 확장할 수 있습니다.
+- **CLI 기반 실행:** `main.py`를 통해 원하는 스크리너와 옵션을 선택하여 간편하게 실행할 수 있습니다.
 
-## 시스템 아키텍처
+## 설치 방법
 
-```mermaid
-graph TD
-    subgraph 사용자
-        A[실행] --> B{스크리너 선택};
-    end
-
-    subgraph 스크리너
-        B --> C[altcoin_screener.py];
-        B --> D[binance_futures_screener.py];
-        B --> E[daily_screener.py];
-    end
-
-    subgraph 데이터 소스
-        F[Upbit API]
-        G[Binance API]
-    end
-
-    subgraph 데이터 처리
-        H[ccxt 라이브러리]
-        I[python-binance 라이브러리]
-        J[pandas / pandas-ta]
-    end
-
-    subgraph 결과물
-        K[watchlist.txt]
-        L[charts/ 폴더 (이미지)]
-        M[콘솔 출력]
-    end
-
-    C --> H;
-    D --> I;
-    E --> H;
-
-    H --> F;
-    I --> G;
-
-    H --> J;
-    I --> J;
-
-    J --> C;
-    J --> D;
-    J --> E;
-
-    C --> M;
-    D --> M;
-    E --> K;
-    E --> L;
-    E --> M;
-```
-
-## 주요 기능 및 설정
-
-### `altcoin_screener.py`
-
--   **목적**: 특정 패턴(MOVE/KRW, IMX/KRW 유사)을 가진 알트코인 탐색
--   **주요 설정값**:
-    -   `MAX_LISTING_DAYS`: 최대 상장일
-    -   `MIN_DOWNTREND_FROM_ATH`: 고점 대비 최소 하락률
-    -   `MIN_VOLATILITY`, `MAX_VOLATILITY`: 최근 변동성 범위
-    -   `MIN_CCI`, `MAX_CCI`: CCI 지표 범위
--   **선택적 필터**: RSI, 거래량 증가율 필터를 활성화/비활성화할 수 있습니다.
-
-### `binance_futures_screener.py`
-
--   **목적**: 바이낸스 선물 시장에서 특정 조건을 만족하는 코인 탐색
--   **주요 설정값**:
-    -   `OI_CHANGE_24H_MIN`, `OI_CHANGE_4H_MIN`: 미결제 약정 최소 변화율
-    -   `LONG_ACCOUNTS_1H_MIN`, `LONG_ACCOUNTS_1H_MAX`: 롱 포지션 계정 비율 범위
-    -   `PRICE_CHANGE_24H_MAX`: 최대 가격 변화율
-    -   `OI_VOLUME_24H_MIN`: 거래량 대비 미결제 약정 비율
-    -   `FUNDING_RATE_AVG_MIN`: 평균 펀딩비
-
-### `daily_screener.py`
-
--   **목적**: 매일 업비트 원화 마켓을 분석하여 관심 코인 선정 및 리포트 생성
--   **주요 설정값**:
-    -   `MIN_DAILY_VOLUME_KRW`: 최소 일일 거래대금
-    -   `MIN_DOWNTREND_FROM_ATH`: 고점 대비 최소 하락률
-    -   `MIN_VOLATILITY_30D`, `MAX_VOLATILITY_30D`: 30일 변동성 범위
-    -   `MIN_CCI`, `MAX_CCI`: CCI 지표 범위
--   **결과물**:
-    -   `watchlist.txt`: 분석 결과 요약 텍스트 파일
-    -   `charts/`: 선정된 코인의 상세 차트 이미지 파일
-
-## 설치 및 실행 방법
-
-1.  **가상환경 설정 및 의존성 설치**:
+1.  **프로젝트 복제:**
     ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate
+    git clone https://github.com/your-username/your-repo-name.git
+    cd your-repo-name
+    ```
+
+2.  **가상 환경 생성 및 활성화 (권장):**
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate  # macOS/Linux
+    # .\.venv\Scripts\activate  # Windows
+    ```
+
+3.  **필요한 라이브러리 설치:**
+    ```bash
     pip install -r requirements.txt
     ```
 
-2.  **스크리너 실행**:
-    -   알트코인 스크리너 실행:
-        ```bash
-        python altcoin_screener.py
-        ```
-    -   바이낸스 선물 스크리너 실행:
-        ```bash
-        python binance_futures_screener.py
-        ```
-    -   데일리 스크리너 실행:
-        ```bash
-        python daily_screener.py
-        ```
+## 사용 방법
 
-## 참고
+이 도구는 웹 UI와 CLI 두 가지 방식으로 사용할 수 있습니다.
 
--   이 프로젝트는 투자 추천이 아니며, 모든 투자의 책임은 본인에게 있습니다.
--   API 사용 시 각 거래소의 정책 및 속도 제한(Rate Limit)을 준수해야 합니다.
+### 1. 웹 UI (권장)
+
+간단한 웹 인터페이스를 통해 각 스크리너를 실행하고 결과를 바로 확인할 수 있습니다.
+
+1.  **웹 서버 실행:**
+    ```bash
+    python main.py web
+    ```
+2.  웹 브라우저에서 `http://127.0.0.1:8000` 주소로 접속합니다.
+3.  드롭다운 메뉴에서 원하는 스크리너를 선택하고 '실행' 버튼을 클릭합니다.
+
+### 2. CLI (명령줄 인터페이스)
+
+터미널에서 직접 스크리너를 실행할 수 있습니다.
+
+```bash
+python main.py run [스크리너_이름] [옵션]
+```
+
+**스크리너 종류:**
+
+- **`daily`**: 데일리 관심 코인 스크리너
+  ```bash
+  python main.py run daily
+  ```
+  - 실행 결과는 `watchlist.txt` 파일과 `charts/` 디렉토리에 저장됩니다.
+
+- **`altcoin`**: 특정 패턴 알트코인 탐색
+  ```bash
+  python main.py run altcoin
+  ```
+
+- **`futures`**: 바이낸스 선물 시장 분석
+  ```bash
+  python main.py run futures
+  ```
+
+- **`daytrade`**: 단타 전략 분석 및 백테스트
+  - 실시간 분석 모드 (기본값):
+    ```bash
+    python main.py run daytrade
+    ```
+  - 백테스트 모드:
+    ```bash
+    python main.py run daytrade --mode backtest
+    ```
+  - 분석 대상 심볼은 `config.json` 파일의 `DAY_TRADING_SYMBOL` 값을 수정하여 변경할 수 있습니다.
+
+## 설정
+
+- `config.json`: 프로젝트의 주요 설정을 담고 있습니다. `daytrade` 스크리너의 분석 대상 심볼(`DAY_TRADING_SYMBOL`) 등을 여기서 변경할 수 있습니다.
+  - `config.json.example` 파일을 `config.json`으로 복사한 후, 필요에 따라 값을 수정하여 사용하세요.
+- 각 `screener/` 안의 파이썬 파일 상단에서 해당 스크리너의 세부 분석 기준(예: CCI 기간, 변동성 기준 등)을 직접 수정할 수 있습니다.
+
+## 테스트 실행
+
+프로젝트의 테스트는 `unittest` 프레임워크를 사용하여 작성되었습니다. 다음 명령어를 통해 모든 테스트를 실행할 수 있습니다:
+
+```bash
+python -m unittest discover tests
+```
+
+## 코드 스타일
+
+이 프로젝트는 [Black](https://github.com/psf/black)과 [Flake8](https://flake8.pycqa.org/en/latest/)을 사용하여 코드 스타일을 관리합니다. 코드를 커밋하기 전에 다음 명령어를 실행하여 코드 스타일을 확인하고 자동으로 포맷팅하는 것을 권장합니다.
+
+```bash
+black .
+flake8 .
+```
+
+## 기여 방법
+
+이 프로젝트는 오픈소스이며, 여러분의 기여를 환영합니다. 버그를 발견하거나 새로운 기능을 제안하고 싶다면 언제든지 이슈(Issue)를 등록하거나 풀 리퀘스트(Pull Request)를 보내주세요.
+
+## 라이선스
+
+이 프로젝트는 [MIT 라이선스](LICENSE)를 따릅니다.
