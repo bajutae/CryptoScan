@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@smithery-ai/github",
+        "--key",
+        "0210df54-50ad-42a3-b58a-c00af5bc9f79",
+        "--profile",
+        "coming-lobster-ilr3Tt"
+      ]
+    }
+  }
+}

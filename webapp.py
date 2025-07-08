@@ -46,8 +46,6 @@ async def run_screener(screener_name: str, mode: str = 'screener'):
             encoding='utf-8'
         )
         output = process.stdout
-        if process.stderr:
-            output += "\n--- Stderr ---\n" + process.stderr
         return {"output": output}
     except subprocess.CalledProcessError as e:
         error_message = f"오류 발생 (Exit Code: {e.returncode}):\n"
