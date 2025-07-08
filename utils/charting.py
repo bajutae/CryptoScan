@@ -33,6 +33,6 @@ def save_chart(
                  addplot=add_plots,
                  vlines=dict(vlines=vlines, linewidths=0.5, colors='r', alpha=0.7) if vlines else None,
                  savefig=dict(fname=output_path, dpi=150, bbox_inches='tight'))
-        # print(f"Chart for {symbol} saved to {output_path}")
+        print(f"Chart saved to {output_path}")  # 차트 저장 경로 출력
     except Exception as e:
         print(f"Error creating chart for {symbol}: {e}")

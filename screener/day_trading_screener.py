@@ -5,6 +5,7 @@ import pandas_ta as ta
 import json
 import os
 import sys
+import mplfinance as mpf
 
 # --- 설정 로드 ---
 def load_config():
@@ -193,6 +194,47 @@ async def run_backtest_logic():
             avg_loss_per_trade = sum(trade['profit_loss_usd'] for trade in trade_history if trade['profit_loss_usd'] < 0) / losing_trades if losing_trades > 0 else 0
             print(f"평균 익절: {avg_profit_per_trade:.2f} USD")
             print(f"평균 손절: {avg_loss_per_trade:.2f} USD")
+
+        # --- 차트 생성 로직 추가 ---
+        if not df.empty and total_trades > 0:
+            output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'charts')
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            
+            chart_file_path = os.path.join(output_dir, f"backtest_{SYMBOL.replace('/', '_')}.png")
+
+            # 진입/청산 지점 시각화를 위한 데이터 준비
+            entry_points = [trade['entry_time'] for trade in trade_history]
+            exit_points = [trade['exit_time'] for trade in trade_history]
+            
+            entry_markers = [df.loc[time]['low'] * 0.98 for time in entry_points if time in df.index]
+            exit_markers = [df.loc[time]['high'] * 1.02 for time in exit_points if time in df.index]
+            
+            entry_times_for_plot = [time for time in entry_points if time in df.index]
+            exit_times_for_plot = [time for time in exit_points if time in df.index]
+
+            add_plots = [
+                mpf.make_addplot(df['EMA_5'], color='blue', width=0.7),
+                mpf.make_addplot(df['EMA_20'], color='orange', width=0.7),
+                mpf.make_addplot(df.loc[entry_times_for_plot], scatter=True, y=entry_markers, marker='^', color='green', s=100),
+                mpf.make_addplot(df.loc[exit_times_for_plot], scatter=True, y=exit_markers, marker='v', color='red', s=100)
+            ]
+
+            chart_title = f"{SYMBOL} Backtest Results"
+
+            try:
+                mpf.plot(df, 
+                         type='candle', 
+                         style='yahoo',
+                         title=chart_title,
+                         volume=True, 
+                         panel_ratios=(3, 1),
+                         addplot=add_plots,
+                         figsize=(15, 8),
+                         savefig=dict(fname=chart_file_path, dpi=150, bbox_inches='tight'))
+                print(f"Chart saved to {chart_file_path}")
+            except Exception as e:
+                print(f"백테스팅 차트 생성 중 오류 발생: {e}")
 
     except (ccxt.NetworkError, ccxt.ExchangeError) as e:
         print(f"백테스팅 중 거래소 통신 오류 발생: {type(e).__name__} - {e}")

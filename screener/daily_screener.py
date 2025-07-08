@@ -94,11 +94,7 @@ def daily_screener():
             cci_panel = mpf.make_addplot(df.tail(CHART_DAYS)[f'CCI_{CCI_PERIOD}_0.015'], panel=2, color='purple', ylabel='CCI')
             spike_date = pd.to_datetime(coin_data['max_spike_date_full'])
             
-            chart_title = (
-                f"{coin_data['symbol']} | ATH 대비 {coin_data['downtrend']:.1f}% 하락\n"
-                f"30일 변동성: {coin_data['volatility']:.1f}% | 현재 CCI: {coin_data['cci']:.1f}\n"
-                f"과거 거래량 급증: {coin_data['max_volume_spike']:.1f}배 ({coin_data['max_spike_date']})"
-            )
+            chart_title = coin_data['symbol']
 
             save_chart(
                 df,

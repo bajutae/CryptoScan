@@ -32,13 +32,12 @@
                 <label for="screener-select" class="block mb-2 text-sm font-medium text-gray-300">스크리너 선택</label>
                 <select id="screener-select" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
                     <option value="daily">데일리 관심 코인</option>
-                    <option value="altcoin">MOVE/IMX 유사 코인</option>
-                    <option value="futures">바이낸스 선물</option>
-                    <option value="daytrade">단타 전략 분석 (BTC/USDT)</option>
+                    <option value="altcoin">신규 상장 후 하락한 알트코인</option>
+                    
                 </select>
             </div>
 
-            <div id="daily-screener-criteria" class="hidden mb-6 p-4 bg-gray-700 rounded-lg">
+            <div id="daily-screener-criteria" class="mb-6 p-4 bg-gray-700 rounded-lg">
                 <h3 class="text-lg font-semibold mb-2">데일리 관심 코인 선정 기준</h3>
                 <ul class="list-disc list-inside text-sm text-gray-300">
                     <li><strong>기준 통화:</strong> KRW (원화) 마켓에서 거래되는 코인</li>
@@ -50,64 +49,112 @@
                 </ul>
             </div>
 
-            <div id="daytrade-options" class="hidden mb-6">
-                <label for="daytrade-mode" class="block mb-2 text-sm font-medium text-gray-300">Daytrade 모드</label>
-                <select id="daytrade-mode" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
-                    <option value="screener">실시간 분석</option>
-                    <option value="backtest">백테스트</option>
-                </select>
+            <div id="altcoin-screener-criteria" class="hidden mb-6 p-4 bg-gray-700 rounded-lg">
+                <h3 class="text-lg font-semibold mb-2">신규 상장 후 하락한 알트코인 탐색 기준</h3>
+                <ul class="list-disc list-inside text-sm text-gray-300">
+                    <li><strong>대상:</strong> 업비트(KRW) 마켓, 상장 4.5년 미만 코인</li>
+                    <li><strong>최소 일일 거래량:</strong> 5억 KRW 이상</li>
+                    <li><strong>ATH 대비 하락률:</strong> 최고점 대비 최소 70% 이상 하락</li>
+                    <li><strong>최근 변동성:</strong> 30일 변동성이 40% ~ 70% 범위</li>
+                    <li><strong>CCI (20일):</strong> -50 ~ +50 범위 (과매도 탈출 시도)</li>
+                </ul>
             </div>
+
+            
 
             <button id="run-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
                 실행
             </button>
         </div>
 
-        <div id="output-container" class="max-w-4xl mx-auto mt-10 hidden">
+        <div id="output-container" class="max-w-5xl mx-auto mt-10 hidden">
             <h2 class="text-2xl font-semibold mb-4">실행 결과</h2>
-            <div id="output-box" class="output-box"></div>
+            <div id="table-container" class="mb-6"></div>
+            <div id="chart-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            
+            <details class="mt-6">
+                <summary class="cursor-pointer text-gray-400">원본 로그 보기</summary>
+                <div id="output-box" class="output-box mt-2"></div>
+            </details>
         </div>
     </div>
 
     <script>
         const screenerSelect = document.getElementById('screener-select');
-        const daytradeOptions = document.getElementById('daytrade-options');
-        const dailyScreenerCriteria = document.getElementById('daily-screener-criteria'); // 새롭게 추가
+        const dailyScreenerCriteria = document.getElementById('daily-screener-criteria');
+        const altcoinScreenerCriteria = document.getElementById('altcoin-screener-criteria');
         const runButton = document.getElementById('run-button');
         const outputContainer = document.getElementById('output-container');
         const outputBox = document.getElementById('output-box');
+        const chartContainer = document.getElementById('chart-container');
+        const tableContainer = document.getElementById('table-container');
 
         screenerSelect.addEventListener('change', () => {
-            if (screenerSelect.value === 'daytrade') {
-                daytradeOptions.classList.remove('hidden');
-                dailyScreenerCriteria.classList.add('hidden'); // 다른 스크리너 선택 시 숨김
-            } else if (screenerSelect.value === 'daily') { // 'daily' 선택 시 보이도록
-                daytradeOptions.classList.add('hidden');
+            // 모든 설명 영역을 일단 숨깁니다.
+            dailyScreenerCriteria.classList.add('hidden');
+            altcoinScreenerCriteria.classList.add('hidden');
+
+            // 선택된 스크리너에 따라 해당 설명 영역을 보여줍니다.
+            const selectedValue = screenerSelect.value;
+            if (selectedValue === 'daily') {
                 dailyScreenerCriteria.classList.remove('hidden');
-            }
-            else { // 그 외 스크리너 선택 시 모두 숨김
-                daytradeOptions.classList.add('hidden');
-                dailyScreenerCriteria.classList.add('hidden');
+            } else if (selectedValue === 'altcoin') {
+                altcoinScreenerCriteria.classList.remove('hidden');
             }
         });
 
         runButton.addEventListener('click', async () => {
             const screener = screenerSelect.value;
-            const mode = document.getElementById('daytrade-mode').value;
             
             outputContainer.classList.remove('hidden');
             outputBox.textContent = '스크리너를 실행 중입니다...';
+            chartContainer.innerHTML = ''; // 이전 차트 삭제
+            tableContainer.innerHTML = ''; // 이전 테이블 삭제
             runButton.disabled = true;
             runButton.textContent = '실행 중...';
 
             try {
-                const response = await fetch(`/run-screener/${screener}?mode=${mode}`);
+                const response = await fetch(`/run-screener/${screener}`);
                 const result = await response.json();
                 
                 if (response.ok) {
                     outputBox.textContent = result.output;
+
+                    // 테이블 데이터 렌더링
+                    if (result.table && result.table.rows.length > 0) {
+                        outputBox.classList.add('hidden'); // 원본 로그 숨기기
+                        let tableHtml = '<table class="min-w-full bg-gray-700 rounded-lg overflow-hidden shadow-md">';
+                        tableHtml += '<thead class="bg-gray-600"><tr>';
+                        result.table.headers.forEach(header => {
+                            tableHtml += `<th class="py-2 px-4 text-left text-sm font-semibold text-gray-200">${header}</th>`;
+                        });
+                        tableHtml += '</tr></thead><tbody>';
+                        result.table.rows.forEach(row => {
+                            tableHtml += '<tr class="border-b border-gray-600 hover:bg-gray-600">';
+                            row.forEach(cell => {
+                                tableHtml += `<td class="py-2 px-4 text-sm text-gray-300">${cell}</td>`;
+                            });
+                            tableHtml += '</tr>';
+                        });
+                        tableHtml += '</tbody></table>';
+                        tableContainer.innerHTML = tableHtml;
+                    } else {
+                        outputBox.classList.remove('hidden'); // 테이블 데이터 없으면 원본 로그 표시
+                    }
+
+                    // 차트 렌더링
+                    if (result.charts && result.charts.length > 0) {
+                        result.charts.forEach(chartPath => {
+                            const img = document.createElement('img');
+                            img.src = chartPath + '?t=' + new Date().getTime(); // 캐시 방지
+                            img.alt = "Screener Chart";
+                            img.className = "mt-4 rounded-lg shadow-md";
+                            chartContainer.appendChild(img);
+                        });
+                    }
                 } else {
-                    outputBox.textContent = `오류 발생: ${result.detail}`;
+                    outputBox.textContent = `오류 발생: ${result.detail || result.output}`;
+                    outputBox.classList.remove('hidden');
                 }
             } catch (error) {
                 outputBox.textContent = `네트워크 오류 또는 서버 문제 발생: ${error}`;
