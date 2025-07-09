@@ -39,25 +39,74 @@
 
             <div id="daily-screener-criteria" class="mb-6 p-4 bg-gray-700 rounded-lg">
                 <h3 class="text-lg font-semibold mb-2">데일리 관심 코인 선정 기준</h3>
-                <ul class="list-disc list-inside text-sm text-gray-300">
-                    <li><strong>기준 통화:</strong> KRW (원화) 마켓에서 거래되는 코인</li>
-                    <li><strong>최소 일일 거래량:</strong> 5억 KRW 이상</li>
-                    <li><strong>ATH 대비 하락률:</strong> 역대 최고가(ATH) 대비 최소 70% 이상 하락</li>
-                    <li><strong>30일 변동성:</strong> 지난 30일간의 변동성(최근 고점과 저점의 차이를 현재 종가로 나눈 값)이 45.0% ~ 75.0% 사이</li>
-                    <li><strong>CCI (Commodity Channel Index):</strong> 현재 CCI 값(20일 기준)이 -40.0 ~ 40.0 사이</li>
-                    <li><strong>과거 거래량 급증:</strong> (필수 아님) 지난 30일 이내 유의미한 거래량 급증 여부 분석</li>
-                </ul>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="daily-min-volume" class="block mb-1 text-sm font-medium text-gray-300">최소 일일 거래량 (KRW)</label>
+                        <input type="number" id="daily-min-volume" value="500000000" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="daily-min-downtrend" class="block mb-1 text-sm font-medium text-gray-300">ATH 대비 최소 하락률 (%)</label>
+                        <input type="number" id="daily-min-downtrend" value="70" step="0.1" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="daily-min-volatility" class="block mb-1 text-sm font-medium text-gray-300">최소 30일 변동성 (%)</label>
+                        <input type="number" id="daily-min-volatility" value="45" step="0.1" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="daily-max-volatility" class="block mb-1 text-sm font-medium text-gray-300">최대 30일 변동성 (%)</label>
+                        <input type="number" id="daily-max-volatility" value="75" step="0.1" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="daily-min-cci" class="block mb-1 text-sm font-medium text-gray-300">최소 CCI (20일)</label>
+                        <input type="number" id="daily-min-cci" value="-40" step="0.1" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="daily-max-cci" class="block mb-1 text-sm font-medium text-gray-300">최대 CCI (20일)</label>
+                        <input type="number" id="daily-max-cci" value="40" step="0.1" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="daily-cci-period" class="block mb-1 text-sm font-medium text-gray-300">CCI 기간</label>
+                        <input type="number" id="daily-cci-period" value="20" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                </div>
             </div>
 
             <div id="altcoin-screener-criteria" class="hidden mb-6 p-4 bg-gray-700 rounded-lg">
                 <h3 class="text-lg font-semibold mb-2">신규 상장 후 하락한 알트코인 탐색 기준</h3>
-                <ul class="list-disc list-inside text-sm text-gray-300">
-                    <li><strong>대상:</strong> 업비트(KRW) 마켓, 상장 4.5년 미만 코인</li>
-                    <li><strong>최소 일일 거래량:</strong> 5억 KRW 이상</li>
-                    <li><strong>ATH 대비 하락률:</strong> 최고점 대비 최소 70% 이상 하락</li>
-                    <li><strong>최근 변동성:</strong> 30일 변동성이 40% ~ 70% 범위</li>
-                    <li><strong>CCI (20일):</strong> -50 ~ +50 범위 (과매도 탈출 시도)</li>
-                </ul>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="altcoin-min-volume" class="block mb-1 text-sm font-medium text-gray-300">최소 일일 거래량 (KRW)</label>
+                        <input type="number" id="altcoin-min-volume" value="500000000" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="altcoin-max-listing-days" class="block mb-1 text-sm font-medium text-gray-300">최대 상장일 (일)</label>
+                        <input type="number" id="altcoin-max-listing-days" value="1648" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="altcoin-min-downtrend" class="block mb-1 text-sm font-medium text-gray-300">ATH 대비 최소 하락률 (%)</label>
+                        <input type="number" id="altcoin-min-downtrend" value="70" step="0.1" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="altcoin-min-volatility" class="block mb-1 text-sm font-medium text-gray-300">최소 30일 변동성 (%)</label>
+                        <input type="number" id="altcoin-min-volatility" value="40" step="0.1" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="altcoin-max-volatility" class="block mb-1 text-sm font-medium text-gray-300">최대 30일 변동성 (%)</label>
+                        <input type="number" id="altcoin-max-volatility" value="70" step="0.1" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="altcoin-min-cci" class="block mb-1 text-sm font-medium text-gray-300">최소 CCI (20일)</label>
+                        <input type="number" id="altcoin-min-cci" value="-50" step="0.1" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="altcoin-max-cci" class="block mb-1 text-sm font-medium text-gray-300">최대 CCI (20일)</label>
+                        <input type="number" id="altcoin-max-cci" value="50" step="0.1" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                    <div>
+                        <label for="altcoin-cci-period" class="block mb-1 text-sm font-medium text-gray-300">CCI 기간</label>
+                        <input type="number" id="altcoin-cci-period" value="20" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                    </div>
+                </div>
             </div>
 
             
@@ -89,6 +138,11 @@
         const chartContainer = document.getElementById('chart-container');
         const tableContainer = document.getElementById('table-container');
 
+        // 초기 로드 시 데일리 스크리너 기준 표시
+        screenerSelect.value = 'daily';
+        dailyScreenerCriteria.classList.remove('hidden');
+        altcoinScreenerCriteria.classList.add('hidden');
+
         screenerSelect.addEventListener('change', () => {
             // 모든 설명 영역을 일단 숨깁니다.
             dailyScreenerCriteria.classList.add('hidden');
@@ -105,6 +159,30 @@
 
         runButton.addEventListener('click', async () => {
             const screener = screenerSelect.value;
+            let requestBody = {};
+
+            if (screener === 'daily') {
+                requestBody = {
+                    min_daily_volume_krw: parseFloat(document.getElementById('daily-min-volume').value),
+                    min_downtrend_from_ath: parseFloat(document.getElementById('daily-min-downtrend').value) / 100,
+                    min_volatility_30d: parseFloat(document.getElementById('daily-min-volatility').value),
+                    max_volatility_30d: parseFloat(document.getElementById('daily-max-volatility').value),
+                    min_cci: parseFloat(document.getElementById('daily-min-cci').value),
+                    max_cci: parseFloat(document.getElementById('daily-max-cci').value),
+                    cci_period: parseInt(document.getElementById('daily-cci-period').value)
+                };
+            } else if (screener === 'altcoin') {
+                requestBody = {
+                    min_daily_volume_usd: parseFloat(document.getElementById('altcoin-min-volume').value),
+                    max_listing_days: parseInt(document.getElementById('altcoin-max-listing-days').value),
+                    min_downtrend_from_ath: parseFloat(document.getElementById('altcoin-min-downtrend').value) / 100,
+                    min_volatility: parseFloat(document.getElementById('altcoin-min-volatility').value),
+                    max_volatility: parseFloat(document.getElementById('altcoin-max-volatility').value),
+                    min_cci: parseFloat(document.getElementById('altcoin-min-cci').value),
+                    max_cci: parseFloat(document.getElementById('altcoin-max-cci').value),
+                    cci_period: parseInt(document.getElementById('altcoin-cci-period').value)
+                };
+            }
             
             outputContainer.classList.remove('hidden');
             outputBox.textContent = '스크리너를 실행 중입니다...';
@@ -114,7 +192,15 @@
             runButton.textContent = '실행 중...';
 
             try {
-                const response = await fetch(`/run-screener/${screener}`);
+                const response = await fetch(`/run-screener/${screener}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestBody)
+                    }
+                );
                 const result = await response.json();
                 
                 if (response.ok) {

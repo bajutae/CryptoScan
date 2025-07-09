@@ -1,16 +1,7 @@
-
 import argparse
 import sys
 import uvicorn
-from screener import daily_screener, altcoin_screener, binance_futures_screener, day_trading_screener
-
-# --- CLI 스크리너 설정 ---
-SCREENER_MAP = {
-    'daily': daily_screener.daily_screener,
-    'altcoin': altcoin_screener.altcoin_screener,
-    'futures': binance_futures_screener.futures_screener,
-    'daytrade': lambda mode: day_trading_screener.day_trading_screener(mode=mode),
-}
+from screener import daily_screener, altcoin_screener
 
 # --- 메인 실행 로직 ---
 def main():
@@ -28,23 +19,29 @@ def main():
 
     # 'run' 커맨드 파서 (기존 CLI 기능)
     parser_run = subparsers.add_parser('run', help='CLI에서 스크리너를 직접 실행합니다.')
-    parser_run.add_argument(
-        'screener',
-        choices=SCREENER_MAP.keys(),
-        help=(
-            '실행할 스크리너를 선택합니다.\n'
-            '  - daily: 일봉 기준 관심 코인 분석\n'
-            '  - altcoin: 특정 패턴의 알트코인 탐색\n'
-            '  - futures: 바이낸스 선물 시장 데이터 분석\n'
-            '  - daytrade: 특정 코인 단타 전략 분석 및 백테스트'
-        )
-    )
-    parser_run.add_argument(
-        '--mode',
-        choices=['screener', 'backtest'],
-        default='screener',
-        help='daytrade 스크리너의 실행 모드를 선택합니다. (기본값: screener)'
-    )
+    # Add a subparser for each screener under 'run'
+    screener_subparsers = parser_run.add_subparsers(dest='screener_name', required=True, help='실행할 스크리너')
+
+    # Daily Screener Subparser
+    daily_parser = screener_subparsers.add_parser('daily', help='데일리 관심 코인 스크리너')
+    daily_parser.add_argument('--min-daily-volume-krw', type=float, default=500_000_000, help='최소 일일 거래량 (KRW)')
+    daily_parser.add_argument('--min-downtrend-from-ath', type=float, default=0.70, help='ATH 대비 최소 하락률 (0.0 ~ 1.0)')
+    daily_parser.add_argument('--min-volatility-30d', type=float, default=45.0, help='최소 30일 변동성 (%)')
+    daily_parser.add_argument('--max-volatility-30d', type=float, default=75.0, help='최대 30일 변동성 (%)')
+    daily_parser.add_argument('--min-cci', type=float, default=-40.0, help='최소 CCI 값')
+    daily_parser.add_argument('--max-cci', type=float, default=40.0, help='최대 CCI 값')
+    daily_parser.add_argument('--cci-period', type=int, default=20, help='CCI 계산 기간')
+
+    # Altcoin Screener Subparser
+    altcoin_parser = screener_subparsers.add_parser('altcoin', help='신규 상장 후 하락한 알트코인 탐색')
+    altcoin_parser.add_argument('--min-daily-volume-usd', type=float, default=500_000_000, help='최소 일일 거래량 (USD)')
+    altcoin_parser.add_argument('--max-listing-days', type=int, default=1648, help='최대 상장일 (일)')
+    altcoin_parser.add_argument('--min-downtrend-from-ath', type=float, default=0.70, help='ATH 대비 최소 하락률 (0.0 ~ 1.0)')
+    altcoin_parser.add_argument('--min-volatility', type=float, default=40.0, help='최소 30일 변동성 (%)')
+    altcoin_parser.add_argument('--max-volatility', type=float, default=70.0, help='최대 30일 변동성 (%)')
+    altcoin_parser.add_argument('--min-cci', type=float, default=-50.0, help='최소 CCI 값')
+    altcoin_parser.add_argument('--max-cci', type=float, default=50.0, help='최대 CCI 값')
+    altcoin_parser.add_argument('--cci-period', type=int, default=20, help='CCI 계산 기간')
 
     args = parser.parse_args()
 
@@ -53,16 +50,27 @@ def main():
         uvicorn.run("webapp:app", host=args.host, port=args.port, reload=True)
     
     elif args.command == 'run':
-        screener_to_run = SCREENER_MAP.get(args.screener)
-        if screener_to_run:
-            if args.screener == 'daytrade':
-                screener_to_run(args.mode)
-            else:
-                screener_to_run()
-        else:
-            print(f"오류: '{args.screener}'는 유효한 스크리너가 아닙니다.", file=sys.stderr)
-            sys.exit(1)
+        if args.screener_name == 'daily':
+            daily_screener.daily_screener(
+                min_daily_volume_krw=args.min_daily_volume_krw,
+                min_downtrend_from_ath=args.min_downtrend_from_ath,
+                min_volatility_30d=args.min_volatility_30d,
+                max_volatility_30d=args.max_volatility_30d,
+                min_cci=args.min_cci,
+                max_cci=args.max_cci,
+                cci_period=args.cci_period
+            )
+        elif args.screener_name == 'altcoin':
+            altcoin_screener.altcoin_screener(
+                min_daily_volume_usd=args.min_daily_volume_usd,
+                max_listing_days=args.max_listing_days,
+                min_downtrend_from_ath=args.min_downtrend_from_ath,
+                min_volatility=args.min_volatility,
+                max_volatility=args.max_volatility,
+                min_cci=args.min_cci,
+                max_cci=args.max_cci,
+                cci_period=args.cci_period
+            )
 
 if __name__ == '__main__':
     main()
-

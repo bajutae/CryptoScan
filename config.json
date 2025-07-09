@@ -1,6 +1,21 @@
 {
-    "SYMBOL": "BTC/USDT",
-    "PROFIT_TARGET_USD": 100,
-    "POSITION_SIZE_USD": 10000,
-    "MIN_RR_RATIO": 2.0
+    "daily_screener": {
+        "min_daily_volume_krw": 500000000,
+        "min_downtrend_from_ath": 0.70,
+        "min_volatility_30d": 45.0,
+        "max_volatility_30d": 75.0,
+        "min_cci": -40.0,
+        "max_cci": 40.0,
+        "cci_period": 20
+    },
+    "altcoin_screener": {
+        "min_daily_volume_usd": 500000000,
+        "max_listing_days": 1648,
+        "min_downtrend_from_ath": 0.70,
+        "min_volatility": 40.0,
+        "max_volatility": 70.0,
+        "min_cci": -50.0,
+        "max_cci": 50.0,
+        "cci_period": 20
+    }
 }

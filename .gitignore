@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Logs
+*.log
+
+# Database
+*.db
+
+# Generated charts
+charts/
+
+# Watchlist
+watchlist.txt
+
+# Environment variables
+.env

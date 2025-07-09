@@ -1,16 +1,71 @@
-from fastapi import FastAPI, Request
+import logging
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from typing import Optional
+from pydantic import BaseModel
+from typing import Optional, List
+from sqlalchemy.orm import Session
 
 import os
 import re
 import json
-import sys
-import subprocess
+import logging
+from datetime import datetime # datetime 임포트
+
+from screener.daily_screener import daily_screener
+from screener.altcoin_screener import altcoin_screener
+from utils.database import init_db, ScreenerResult, get_db
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO, # 기본 로깅 레벨
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("app.log"), # app.log 파일에 로그 저장
+        logging.StreamHandler() # 콘솔에도 로그 출력
+    ]
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+# 데이터베이스 초기화
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
+# Pydantic 모델 정의
+class DailyScreenerParams(BaseModel):
+    min_daily_volume_krw: Optional[float] = 500_000_000
+    min_downtrend_from_ath: Optional[float] = 0.70
+    min_volatility_30d: Optional[float] = 45.0
+    max_volatility_30d: Optional[float] = 75.0
+    min_cci: Optional[float] = -40.0
+    max_cci: Optional[float] = 40.0
+    cci_period: Optional[int] = 20
+
+class AltcoinScreenerParams(BaseModel):
+    min_daily_volume_usd: Optional[float] = 500_000_000
+    max_listing_days: Optional[int] = 1648
+    min_downtrend_from_ath: Optional[float] = 0.70
+    min_volatility: Optional[float] = 40.0
+    max_volatility: Optional[float] = 70.0
+    min_cci: Optional[float] = -50.0
+    max_cci: Optional[float] = 50.0
+    cci_period: Optional[int] = 20
+
+class ScreenerResultResponse(BaseModel):
+    id: int
+    screener_name: str
+    timestamp: datetime
+    output_text: str
+    chart_paths: List[str]
+    table_headers: List[str]
+    table_rows: List[List[str]]
+
+    class Config:
+        orm_mode = True
 
 # 정적 파일 및 템플릿 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -54,77 +109,60 @@ def parse_screener_output(output: str):
     return table_data
 
 # 스크리너 실행 API 엔드포인트
-@app.get("/run-screener/{screener_name}")
+@app.post("/run-screener/{screener_name}")
 async def run_screener(
     screener_name: str,
-    min_daily_volume_krw: Optional[float] = None,
-    min_downtrend_from_ath: Optional[float] = None,
-    min_volatility_30d: Optional[float] = None,
-    max_volatility_30d: Optional[float] = None,
-    min_cci: Optional[float] = None,
-    max_cci: Optional[float] = None,
-    cci_period: Optional[int] = None,
-    min_daily_volume_usd: Optional[float] = None,
-    max_listing_days: Optional[int] = None,
-    min_volatility: Optional[float] = None,
-    max_volatility: Optional[float] = None,
+    daily_params: Optional[DailyScreenerParams] = None,
+    altcoin_params: Optional[AltcoinScreenerParams] = None,
+    db: Session = Depends(get_db)
 ):
     """
     웹 요청을 받아 해당 스크리너를 별도의 프로세스에서 실행하고 결과를 반환합니다.
     """
-    command = [
-        sys.executable,
-        "main.py",
-        "run",
-        screener_name
-    ]
-
-    # 파라미터 추가
-    if screener_name == 'daily':
-        if min_daily_volume_krw is not None: command.extend(["--min-daily-volume-krw", str(min_daily_volume_krw)])
-        if min_downtrend_from_ath is not None: command.extend(["--min-downtrend-from-ath", str(min_downtrend_from_ath)])
-        if min_volatility_30d is not None: command.extend(["--min-volatility-30d", str(min_volatility_30d)])
-        if max_volatility_30d is not None: command.extend(["--max-volatility-30d", str(max_volatility_30d)])
-        if min_cci is not None: command.extend(["--min-cci", str(min_cci)])
-        if max_cci is not None: command.extend(["--max-cci", str(max_cci)])
-        if cci_period is not None: command.extend(["--cci-period", str(cci_period)])
-    elif screener_name == 'altcoin':
-        if min_daily_volume_usd is not None: command.extend(["--min-daily-volume-usd", str(min_daily_volume_usd)])
-        if max_listing_days is not None: command.extend(["--max-listing-days", str(max_listing_days)])
-        if min_downtrend_from_ath is not None: command.extend(["--min-downtrend-from-ath", str(min_downtrend_from_ath)])
-        if min_volatility is not None: command.extend(["--min-volatility", str(min_volatility)])
-        if max_volatility is not None: command.extend(["--max-volatility", str(max_volatility)])
-        if min_cci is not None: command.extend(["--min-cci", str(min_cci)])
-        if max_cci is not None: command.extend(["--max-cci", str(max_cci)])
-        if cci_period is not None: command.extend(["--cci-period", str(cci_period)])
+    result = {"output": "", "charts": [], "table": {"headers": [], "rows": []}}
 
     try:
-        process = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            check=True,
-            cwd=os.getcwd(),
-            encoding='utf-8'
-        )
-        output = process.stdout
-        error_output = process.stderr
-        
-        # 스크리너 스크립트에서 오류가 발생했는지 확인
-        if process.returncode != 0:
-            full_error_message = f"스크리너 실행 중 오류 발생 (Exit Code: {process.returncode}):\n{output}\n{error_output}"
-            return {"output": full_error_message, "charts": [], "table": {"headers": [], "rows": []}}
+        if screener_name == 'daily':
+            logger.info(f"데일리 스크리너 실행 요청: {daily_params.dict() if daily_params else '기본값'}")
+            if not daily_params: # 기본값 사용
+                daily_params = DailyScreenerParams()
+            screener_result = daily_screener(db, **daily_params.dict())
+        elif screener_name == 'altcoin':
+            logger.info(f"알트코인 스크리너 실행 요청: {altcoin_params.dict() if altcoin_params else '기본값'}")
+            if not altcoin_params: # 기본값 사용
+                altcoin_params = AltcoinScreenerParams()
+            screener_result = altcoin_screener(db, **altcoin_params.dict())
+        else:
+            logger.warning(f"알 수 없는 스크리너 이름 요청: {screener_name}")
+            return {"output": f"알 수 없는 스크리너 이름: {screener_name}", "charts": [], "table": {"headers": [], "rows": []}}
 
-        chart_paths = re.findall(r"Chart saved to (charts/.*?.png)", output)
-        table_data = parse_screener_output(output)
-        
-        return {"output": output, "charts": chart_paths, "table": table_data}
-    except subprocess.CalledProcessError as e:
-        # 이 블록은 check=True 때문에 거의 실행되지 않음
-        error_message = f"오류 발생 (Exit Code: {e.returncode}):\n"
-        error_message += e.stdout
-        error_message += e.stderr
-        return {"output": error_message, "charts": [], "table": {"headers": [], "rows": []}}
+        result["output"] = screener_result["output"]
+        result["charts"] = screener_result["charts"]
+        result["table"] = screener_result["table_data"]
+        logger.info(f"스크리너 {screener_name} 실행 완료.")
+
     except Exception as e:
-        return {"output": f"알 수 없는 오류 발생: {e}", "charts": [], "table": {"headers": [], "rows": []}}
+        logger.exception(f"스크리너 {screener_name} 실행 중 알 수 없는 오류 발생")
+        result["output"] = f"스크리너 실행 중 알 수 없는 오류 발생: {e}"
+
+    return result
+
+# 과거 스크리너 결과 조회 API 엔드포인트
+@app.get("/results", response_model=List[ScreenerResultResponse])
+async def get_screener_results(db: Session = Depends(get_db)):
+    results = db.query(ScreenerResult).order_by(ScreenerResult.timestamp.desc()).all()
+    # JSON 문자열로 저장된 필드를 파싱하여 반환
+    parsed_results = []
+    for res in results:
+        parsed_res = {
+            "id": res.id,
+            "screener_name": res.screener_name,
+            "timestamp": res.timestamp,
+            "output_text": res.output_text,
+            "chart_paths": json.loads(res.chart_paths) if res.chart_paths else [],
+            "table_headers": json.loads(res.table_headers) if res.table_headers else [],
+            "table_rows": json.loads(res.table_rows) if res.table_rows else []
+        }
+        parsed_results.append(parsed_res)
+    return parsed_results
 
